@@ -536,14 +536,10 @@ static inline NSUInteger WS_PAYLOAD_LENGTH(UInt8 frame)
 - (void)sendMessage:(NSString *)msg
 {	
 	NSData *msgData = [msg dataUsingEncoding:NSUTF8StringEncoding];
-	[self sendData:msgData];
-}
 
-- (void)sendData:(NSData *)msgData
-{
-    HTTPLogTrace();
+        HTTPLogTrace();
     
-    NSMutableData *data = nil;
+        NSMutableData *data = nil;
 	
 	if (isRFC6455)
 	{
@@ -568,6 +564,53 @@ static inline NSUInteger WS_PAYLOAD_LENGTH(UInt8 frame)
 		{
 			data = [NSMutableData dataWithCapacity:(length + 10)];
 			[data appendBytes: "\x81\x7F" length:2];
+			[data appendBytes: (UInt8[]){0, 0, 0, 0, (UInt8)(length >> 24), (UInt8)(length >> 16), (UInt8)(length >> 8), length & 0xFF} length:8];
+			[data appendData:msgData];
+		}
+	}
+	else
+	{
+		data = [NSMutableData dataWithCapacity:([msgData length] + 2)];
+        
+		[data appendBytes:"\x00" length:1];
+		[data appendData:msgData];
+		[data appendBytes:"\xFF" length:1];
+	}
+	
+	// Remember: GCDAsyncSocket is thread-safe
+	
+	[asyncSocket writeData:data withTimeout:TIMEOUT_NONE tag:0];
+}
+
+- (void)sendData:(NSData *)msgData
+{
+    HTTPLogTrace();
+    
+    NSMutableData *data = nil;
+	
+	if (isRFC6455)
+	{
+		NSUInteger length = msgData.length;
+		if (length <= 125)
+		{
+			data = [NSMutableData dataWithCapacity:(length + 2)];
+			[data appendBytes: "\x82" length:1];
+			UInt8 len = (UInt8)length;
+			[data appendBytes: &len length:1];
+			[data appendData:msgData];
+		}
+		else if (length <= 0xFFFF)
+		{
+			data = [NSMutableData dataWithCapacity:(length + 4)];
+			[data appendBytes: "\x82\x7E" length:2];
+			UInt16 len = (UInt16)length;
+			[data appendBytes: (UInt8[]){len >> 8, len & 0xFF} length:2];
+			[data appendData:msgData];
+		}
+		else
+		{
+			data = [NSMutableData dataWithCapacity:(length + 10)];
+			[data appendBytes: "\x82\x7F" length:2];
 			[data appendBytes: (UInt8[]){0, 0, 0, 0, (UInt8)(length >> 24), (UInt8)(length >> 16), (UInt8)(length >> 8), length & 0xFF} length:8];
 			[data appendData:msgData];
 		}
