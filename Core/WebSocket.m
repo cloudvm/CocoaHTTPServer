@@ -645,6 +645,11 @@ static inline NSUInteger WS_PAYLOAD_LENGTH(UInt8 frame)
 	}
 }
 
+- (void)didReceiveData:(NSData *)msg
+{
+    HTTPLogTrace();
+}
+
 - (void)didClose
 {
 	HTTPLogTrace();
@@ -796,6 +801,10 @@ static inline NSUInteger WS_PAYLOAD_LENGTH(UInt8 frame)
 		{
 			NSString *msg = [[NSString alloc] initWithBytes:[data bytes] length:msgLength encoding:NSUTF8StringEncoding];
 			[self didReceiveMessage:msg];
+		}
+		else if (nextOpCode == WS_OP_BINARY_FRAME)
+		{
+			[self didReceiveData:data];
 		}
 		else
 		{

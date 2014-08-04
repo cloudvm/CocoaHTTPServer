@@ -73,6 +73,7 @@
 **/
 - (void)didOpen;
 - (void)didReceiveMessage:(NSString *)msg;
+- (void)didReceiveData:(NSData *)msg;
 - (void)didClose;
 
 @end
